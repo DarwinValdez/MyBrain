@@ -520,9 +520,11 @@ revoke execute on function
   public.keyword_search_memories(text, integer, uuid),
   public.similar_memories(uuid, integer, double precision),
   public.replace_memory_chunks(uuid, text, jsonb),
-  public.delete_own_account(),
-  public.handle_new_user()
+  public.delete_own_account()
 from public, anon;
+
+-- Trigger-only function: nobody should call it through the API.
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
 
 grant execute on function
   public.match_memory_chunks(extensions.vector, integer, uuid, double precision),
