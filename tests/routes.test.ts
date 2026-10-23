@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { decideRoute, isProtectedPath, safeRedirectPath } from "@/lib/routes";
 
 describe("route protection", () => {
-  it.each(["/overview", "/memories", "/memories/abc/edit", "/recall", "/graph", "/projects/x", "/settings", "/api/recall", "/api/export"])(
+  it.each(["/overview", "/memories", "/memories/abc/edit", "/voice", "/recall", "/graph", "/projects/x", "/settings", "/api/recall", "/api/export"])(
     "protects %s",
     (path) => expect(isProtectedPath(path)).toBe(true),
   );

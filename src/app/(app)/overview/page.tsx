@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Activity, Brain, FolderKanban, Lightbulb, MessageSquare, Plus, Sparkles } from "lucide-react";
+import { Activity, Brain, FolderKanban, Lightbulb, MessageSquare, Mic, Plus, Sparkles } from "lucide-react";
 import { NeuralBackdrop } from "@/components/brand/neural-backdrop";
 import { MemoryCard } from "@/components/memories/memory-card";
 import { ActivityChart } from "@/components/overview/activity-chart";
@@ -30,6 +30,9 @@ export default function OverviewPage() {
           <div className="flex flex-wrap gap-2">
             <ButtonLink href="/memories/new" variant="secondary" size="sm">
               <Plus className="h-4 w-4" aria-hidden /> New memory
+            </ButtonLink>
+            <ButtonLink href="/voice" variant="secondary" size="sm">
+              <Mic className="h-4 w-4" aria-hidden /> Voice capture
             </ButtonLink>
             <span className="self-center text-xs text-faint">
               or press <kbd className="rounded border border-line-strong px-1 font-mono">C</kbd> for quick capture

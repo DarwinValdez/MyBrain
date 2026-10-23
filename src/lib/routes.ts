@@ -4,6 +4,7 @@
 export const PROTECTED_PREFIXES = [
   "/overview",
   "/memories",
+  "/voice",
   "/recall",
   "/graph",
   "/projects",

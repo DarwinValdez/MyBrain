@@ -4,7 +4,7 @@ import { Wordmark } from "@/components/brand/logo";
 import { ActiveNav } from "@/components/shell/active-nav";
 import { NavList } from "@/components/shell/nav-list";
 
-/** Top bar + fixed bottom tab bar on small screens. Six icons fit at 320px. */
+/** Top bar + fixed bottom tab bar on small screens. Seven icons fit at 320px. */
 export function MobileNav({ capture }: { capture: ReactNode }) {
   return (
     <>
@@ -16,7 +16,7 @@ export function MobileNav({ capture }: { capture: ReactNode }) {
       </header>
       <nav
         aria-label="Main"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-line bg-abyss/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-7 border-t border-line bg-abyss/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
       >
         <Suspense fallback={<NavList variant="mobile" pathname={null} />}>
           <ActiveNav variant="mobile" />

@@ -50,7 +50,7 @@ export async function generateAnswer(
   return { text, truncated: message.stop_reason === "max_tokens", model: message.model };
 }
 
-function toAiError(error: unknown): AiError {
+export function toAiError(error: unknown): AiError {
   if (error instanceof Anthropic.RateLimitError) {
     return new AiError("rate_limited", "The AI provider is rate limiting requests. Please try again in a moment.");
   }

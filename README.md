@@ -16,6 +16,7 @@ NEXUS is a private, single-user knowledge system. You capture ideas, notes, deci
 | **Auth** | Email/password sign-up (with email confirmation), sign-in, sign-out, password reset, session refresh in `src/proxy.ts`, and server-side checks on every page, server action and API route. |
 | **Memories** | Create, edit, delete (with confirmation), view. Title, content, type (idea, note, fact, decision, research, personal reflection, meeting, reference), tags, optional project, source URL, source notes, private visibility, timestamps. Full-text search, filters by type/tag/project, sort by created/updated date, pagination. |
 | **Quick capture** | Press <kbd>C</kbd> anywhere (or the Quick capture button) to save a thought in seconds. |
+| **Voice capture** | `/voice`: live speech-to-text in the browser (Web Speech API; Chrome, Edge, Safari) with a language picker and a “record until I stop” mode that restarts recognition automatically whenever the browser pauses it, so sessions can run indefinitely. The transcript is auto-saved every 2 minutes (and on stop) into a private `#voice` memory, rolling into “(part N)” memories near the size limit. “Extract key information” asks Claude for proposed memories (decisions, ideas, facts, tasks); you choose which to save, optionally into a project, and each is linked back to its session. Browsers without speech recognition get a paste-a-transcript fallback. |
 | **AI Recall** | RAG chat over your memories with inline `[n]` citations that link to the source memory. Hybrid retrieval (pgvector + Postgres full-text), project-scoped questions, persistent conversations, delete one or all conversations. |
 | **Embeddings** | Memories are chunked, embedded (1024-d), and stored in `memory_chunks`. Index status per memory (`pending` / `indexed` / `failed`) with retry. Editing a memory invalidates and re-indexes it; deleting cascades to its chunks. |
 | **Projects** | Name, description, status, goals, next steps; chronological memory timeline; associate/disassociate memories; "Ask about this project". |
@@ -168,6 +169,7 @@ The app is serverless-friendly: no filesystem writes, no in-memory state, no bac
 - **Prompt injection:** retrieved memory text is escaped and fenced as data; the system prompt tells the model to ignore instructions inside it. It can't widen access because the model has no tools and only sees what retrieval already authorized.
 - **Headers:** `X-Frame-Options: DENY`, `nosniff`, strict referrer policy, HSTS, permissions policy.
 - **Not end-to-end encrypted.** Supabase encrypts data at rest and in transit, but RLS is access control, not encryption: the database operator (and anyone with the service-role key or database password) can read stored content.
+- **Voice capture:** NEXUS never receives audio. Speech recognition runs in the browser; Chrome and Edge send the audio to the browser vendor's speech service (Google/Microsoft) to transcribe it. Only the resulting text is sent to NEXUS. “Extract key information” sends that session's transcript to Anthropic.
 - **Third-party AI providers:** memory text is sent to the embedding provider when saved/edited, and relevant excerpts plus your question are sent to Anthropic for answers. Deleting data in NEXUS does **not** delete anything those providers retained under their own policies.
 - **Account deletion** deletes the `auth.users` row; `ON DELETE CASCADE` removes the profile, projects, memories, chunks/embeddings, relationships, conversations and messages in the same transaction. NEXUS stores no files, so there is no storage bucket to clean up.
 
@@ -177,7 +179,7 @@ The app is serverless-friendly: no filesystem writes, no in-memory state, no bac
 
 What was run while building this repository:
 
-- `npm run typecheck`, `npm run lint`, `npm test` (98 tests), `npm run build` — all passing.
+- `npm run typecheck`, `npm run lint`, `npm test` (113 tests), `npm run build` — all passing.
 - `npm run test:db` against PostgreSQL 16 + pgvector 0.6 with a Supabase auth shim — RLS isolation, cross-account FK protection, anon denial, RPC ownership, index invalidation, cascade deletes and account deletion all pass.
 - A browser end-to-end run (Playwright) against the production build, backed by PostgREST 12 on that database and a local auth stub: sign-in, projects, memories (create/validate/edit/delete), quick capture, search/filter/sort, connections, Recall (keyword fallback and a stubbed Claude response with citation mapping), graph, settings, JSON export, a second account unable to read the first account's data, mobile layouts without horizontal overflow, and sign-out.
 
@@ -193,6 +195,7 @@ What was run while building this repository:
 - **Very long memories** (up to 50,000 characters, ≈30+ chunks) are embedded in batches of 64 within one request; extremely slow providers could hit the serverless time limit and the memory would be marked `failed` for retry.
 - **The graph** shows the 300 most recently edited memories and lays them out client-side; very large archives will need server-side clustering.
 - **Not-found pages stream with HTTP 200** because the page shell is flushed before data loads (a consequence of streaming with Cache Components). The content is still the not-found page and no data leaks.
+- **Voice capture depends on the browser.** Firefox has no Web Speech API (a paste fallback is shown). Chrome on Android may beep or pause briefly at each automatic restart, and mobile browsers can suspend recording when the screen locks or the tab is backgrounded (NEXUS requests a screen wake lock where supported). Recognition quality and supported languages are the browser's.
 - **No sharing, file uploads, or attachments** in this MVP. There are therefore no storage buckets.
 - **Rate limiting** covers AI Recall only (10 questions/minute per user). Supabase Auth applies its own limits to sign-in and email endpoints.
 - **No Content-Security-Policy** header yet (Next.js inline scripts would need per-request nonces).

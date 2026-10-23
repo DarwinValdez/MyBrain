@@ -60,3 +60,12 @@ export const LIMITS = {
   projectText: 4000,
   question: 4000,
 } as const;
+
+export const VOICE = {
+  /** Largest block of transcript sent in one auto-save. */
+  maxAppendChars: 20_000,
+  /** A session memory rolls over to a new "part" before hitting the content limit. */
+  maxSessionChars: 45_000,
+  /** Most memories the AI may propose from one transcript. */
+  maxExtracted: 15,
+} as const;
