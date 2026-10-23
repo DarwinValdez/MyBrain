@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+/*
+ * NEXUS design tokens. Dark only: near-black and deep navy surfaces, muted
+ * cyan/teal signal colour, violet highlights used sparingly.
+ */
+@theme {
+  --color-void: #04060b;
+  --color-abyss: #070b15;
+  --color-deep: #0b1220;
+  --color-panel: #0e1626;
+  --color-raised: #131d31;
+  --color-line: rgb(148 163 184 / 0.12);
+  --color-line-strong: rgb(148 163 184 / 0.22);
+  --color-fg: #e3e9f2;
+  --color-soft: #b4c0d3;
+  --color-dim: #7d8aa1;
+  --color-faint: #56627a;
+  --color-signal: #5fd4c8;
+  --color-signal-strong: #8ae6dc;
+  --color-signal-deep: #1d4f52;
+  --color-pulse: #a594f9;
+  --color-pulse-deep: #2e2a5a;
+  --color-danger: #f38b8b;
+  --color-danger-deep: #4a1d24;
+  --color-warn: #f2c46b;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+
+  --shadow-glow: 0 0 0 1px rgb(95 212 200 / 0.18), 0 8px 30px -12px rgb(95 212 200 / 0.25);
+
+  --animate-fade-in: fade-in 0.35s ease-out both;
+  --animate-pulse-soft: pulse-soft 2.4s ease-in-out infinite;
+
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 0.45; }
+    50% { opacity: 1; }
+  }
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-void);
+  color: var(--color-fg);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(1200px 600px at 85% -10%, rgb(95 212 200 / 0.07), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgb(165 148 249 / 0.06), transparent 60%);
+  background-attachment: fixed;
+  min-height: 100dvh;
+}
+
+::selection {
+  background: rgb(95 212 200 / 0.3);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 2px;
+}
+
+/* Thin, quiet scrollbars. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(148 163 184 / 0.2) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Native <dialog> backdrop. */
+dialog::backdrop {
+  background: rgb(2 4 8 / 0.72);
+  backdrop-filter: blur(4px);
+}
+
+/* React Flow theming. */
+.nexus-flow {
+  --xy-background-color: transparent;
+  --xy-edge-stroke: rgb(148 163 184 / 0.28);
+  --xy-edge-stroke-selected: var(--color-signal);
+  --xy-controls-button-background-color: var(--color-panel);
+  --xy-controls-button-background-color-hover: var(--color-raised);
+  --xy-controls-button-color: var(--color-soft);
+  --xy-controls-button-border-color: var(--color-line);
+  --xy-minimap-background-color: var(--color-abyss);
+  --xy-attribution-background-color: transparent;
+}
+.nexus-flow .react-flow__controls {
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: none;
+}
+.nexus-flow .react-flow__edge-text {
+  fill: var(--color-dim);
+  font-size: 10px;
+}
+.nexus-flow .react-flow__edge-textbg {
+  fill: var(--color-abyss);
+}
