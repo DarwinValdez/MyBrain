@@ -2,20 +2,35 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import type { GenerationConfig } from "@/lib/ai/config";
 import { AiError } from "@/lib/ai/errors";
+import { groqChat } from "@/lib/ai/groq";
 
 /** Models that accept the server-side refusal fallback ("fallbacks": "default"). */
 const FALLBACK_MODELS = new Set(["claude-opus-5-5", "claude-opus-5", "claude-fable-5-1", "claude-sonnet-5-5"]);
 
 export type GeneratedAnswer = { text: string; truncated: boolean; model: string };
 
+/** Plain text of a message whose content may be a string or text blocks. */
+function messageText(content: Anthropic.MessageParam["content"]): string {
+  if (typeof content === "string") return content;
+  return content.map((block) => (block.type === "text" ? block.text : "")).join("");
+}
+
 /**
- * Generate an answer with the Anthropic Messages API. Streams internally (and
- * collects the final message) so long answers don't hit HTTP timeouts.
+ * Generate an answer with the configured provider. Anthropic: the Messages API,
+ * streamed internally (collecting the final message) so long answers don't hit
+ * HTTP timeouts. Groq: its OpenAI-compatible chat completions API.
  */
 export async function generateAnswer(
   config: GenerationConfig,
   params: { system: string; messages: Anthropic.MessageParam[] },
 ): Promise<GeneratedAnswer> {
+  if (config.provider === "groq") {
+    return groqChat(config, {
+      system: params.system,
+      messages: params.messages.map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: messageText(m.content) })),
+    });
+  }
+
   const client = new Anthropic({ apiKey: config.apiKey, maxRetries: 2, timeout: 55_000 });
   const useFallbacks = FALLBACK_MODELS.has(config.model);
 

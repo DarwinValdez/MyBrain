@@ -4,7 +4,7 @@
 
 NEXUS is a private, single-user knowledge system. You capture ideas, notes, decisions, research and references; NEXUS stores them in PostgreSQL, indexes them for semantic search with pgvector, and lets you ask questions in natural language. Answers are generated from **your** saved memories and cite the exact memories they used.
 
-- **Stack:** Next.js 16 (App Router, Cache Components, TypeScript strict) · Tailwind CSS 4 · Supabase Auth + Postgres + pgvector · Anthropic Claude (answers) · Voyage AI or OpenAI (embeddings) · Zod · React Flow · Vitest
+- **Stack:** Next.js 16 (App Router, Cache Components, TypeScript strict) · Tailwind CSS 4 · Supabase Auth + Postgres + pgvector · Anthropic Claude or Groq (answers) · Voyage AI or OpenAI (embeddings) · Zod · React Flow · Vitest
 - **Private by default:** every table has Row Level Security; every server query is also filtered by the signed-in user's id. There is no sharing feature.
 
 ---
@@ -62,7 +62,7 @@ NEXUS is a private, single-user knowledge system. You capture ideas, notes, deci
 1. `POST /api/recall` verifies the session (`getClaims()`), validates the body with Zod, and enforces a per-user rate limit (10 questions/minute, counted in the database so it works across serverless instances).
 2. The question is embedded (`input_type: query`) and `match_memory_chunks` (SECURITY INVOKER RPC, explicit `owner_id = auth.uid()` + RLS, optional project filter) returns the closest chunks. `keyword_search_memories` runs full-text search in parallel. Results are fused with reciprocal-rank fusion, grouped per memory, and capped (8 memories, ~16k characters) — the model never sees your whole database.
 3. The prompt wraps excerpts in an escaped `<memories>` block and instructs the model to treat them as untrusted data, cite with `[n]`, separate saved facts from inference, say when context is insufficient, use dates carefully, not treat similarity as causation, and never claim perfect memory.
-4. Claude (`AI_MODEL`, default `claude-opus-5-5`) answers via the official Anthropic SDK (streamed internally). Server-side refusal fallback (`fallbacks: "default"`) is enabled for models that support it.
+4. The configured provider answers: Claude via the official Anthropic SDK (streamed internally; server-side refusal fallback `fallbacks: "default"` for models that support it), or Groq via its OpenAI-compatible chat completions API (default `openai/gpt-oss-120b`). Voice extraction uses Claude structured outputs, or Groq JSON mode validated and repaired with Zod.
 5. `[n]` markers are mapped back to the memories that were actually provided; markers pointing anywhere else are removed. The question, answer and citations are stored in `conversation_messages`.
 
 If embeddings are unavailable, Recall falls back to keyword search. If no generation key is set, Recall returns the matching memories as sources without a written answer.
@@ -76,8 +76,9 @@ If embeddings are unavailable, Recall falls back to keyword search. If no genera
 | `NEXT_PUBLIC_SUPABASE_URL` | yes | Supabase project URL (browser + server). |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | yes* | Publishable key (`sb_publishable_…`). *Or set the legacy `NEXT_PUBLIC_SUPABASE_ANON_KEY` instead. |
 | `NEXT_PUBLIC_SITE_URL` | production | Base URL for auth email links, e.g. `https://nexus.example.com`. |
-| `AI_PROVIDER_API_KEY` | for answers | Anthropic API key. Server only. |
-| `AI_MODEL` | no | Claude model id. Default `claude-opus-5-5`. |
+| `AI_PROVIDER_API_KEY` | for answers | Groq key (`gsk_…`, free tier) or Anthropic key (`sk-ant-…`). The provider is detected from the key. Server only. |
+| `AI_PROVIDER` | no | Force `groq` or `anthropic` instead of detecting it. |
+| `AI_MODEL` | no | Default `openai/gpt-oss-120b` on Groq, `claude-opus-5-5` on Anthropic. |
 | `AI_EFFORT` | no | `low` · `medium` (default) · `high` · `xhigh` · `max`. |
 | `EMBEDDING_PROVIDER` | no | `voyage` (default) or `openai`. |
 | `EMBEDDING_API_KEY` | for semantic search | Voyage AI or OpenAI key. Server only. |
@@ -109,7 +110,8 @@ Notes:
 
 ## 2. Configure AI providers
 
-- **Answers:** create an Anthropic API key at [console.anthropic.com](https://console.anthropic.com) → `AI_PROVIDER_API_KEY`.
+- **Answers (free option):** create a Groq key at [console.groq.com/keys](https://console.groq.com/keys) (free tier, no card; daily rate limits) → `AI_PROVIDER_API_KEY`. Answers use the open model `openai/gpt-oss-120b` by default. Review Groq's data and privacy terms before sending private notes.
+- **Answers (Claude, paid):** create an Anthropic API key at [console.anthropic.com](https://console.anthropic.com) (requires credits) → `AI_PROVIDER_API_KEY`.
 - **Embeddings:** create a Voyage AI key at [dash.voyageai.com](https://dash.voyageai.com) (or use an OpenAI key with `EMBEDDING_PROVIDER=openai`) → `EMBEDDING_API_KEY`.
 
 Both are optional for running the app; features degrade as described above. If you add an embedding key after saving memories, open **Settings → Index pending & failed memories**.
@@ -169,8 +171,8 @@ The app is serverless-friendly: no filesystem writes, no in-memory state, no bac
 - **Prompt injection:** retrieved memory text is escaped and fenced as data; the system prompt tells the model to ignore instructions inside it. It can't widen access because the model has no tools and only sees what retrieval already authorized.
 - **Headers:** `X-Frame-Options: DENY`, `nosniff`, strict referrer policy, HSTS, permissions policy.
 - **Not end-to-end encrypted.** Supabase encrypts data at rest and in transit, but RLS is access control, not encryption: the database operator (and anyone with the service-role key or database password) can read stored content.
-- **Voice capture:** NEXUS never receives audio. Speech recognition runs in the browser; Chrome and Edge send the audio to the browser vendor's speech service (Google/Microsoft) to transcribe it. Only the resulting text is sent to NEXUS. “Extract key information” sends that session's transcript to Anthropic.
-- **Third-party AI providers:** memory text is sent to the embedding provider when saved/edited, and relevant excerpts plus your question are sent to Anthropic for answers. Deleting data in NEXUS does **not** delete anything those providers retained under their own policies.
+- **Voice capture:** NEXUS never receives audio. Speech recognition runs in the browser; Chrome and Edge send the audio to the browser vendor's speech service (Google/Microsoft) to transcribe it. Only the resulting text is sent to NEXUS. “Extract key information” sends that session's transcript to the configured answer provider.
+- **Third-party AI providers:** memory text is sent to the embedding provider when saved/edited, and relevant excerpts plus your question are sent to the answer provider you configured (Groq or Anthropic). Deleting data in NEXUS does **not** delete anything those providers retained under their own policies.
 - **Account deletion** deletes the `auth.users` row; `ON DELETE CASCADE` removes the profile, projects, memories, chunks/embeddings, relationships, conversations and messages in the same transaction. NEXUS stores no files, so there is no storage bucket to clean up.
 
 ---
@@ -179,14 +181,14 @@ The app is serverless-friendly: no filesystem writes, no in-memory state, no bac
 
 What was run while building this repository:
 
-- `npm run typecheck`, `npm run lint`, `npm test` (113 tests), `npm run build` — all passing.
+- `npm run typecheck`, `npm run lint`, `npm test` (121 tests), `npm run build` — all passing.
 - `npm run test:db` against PostgreSQL 16 + pgvector 0.6 with a Supabase auth shim — RLS isolation, cross-account FK protection, anon denial, RPC ownership, index invalidation, cascade deletes and account deletion all pass.
 - A browser end-to-end run (Playwright) against the production build, backed by PostgREST 12 on that database and a local auth stub: sign-in, projects, memories (create/validate/edit/delete), quick capture, search/filter/sort, connections, Recall (keyword fallback and a stubbed Claude response with citation mapping), graph, settings, JSON export, a second account unable to read the first account's data, mobile layouts without horizontal overflow, and sign-out.
 
 **Not verified here** (no credentials were available in the build environment):
 
 - A real Supabase project (hosted Auth emails, the hosted gateway, Supabase's pgvector 0.8 HNSW iterative scans).
-- Live calls to Anthropic, Voyage AI or OpenAI. These paths are covered by unit tests with mocked responses and a stub server only.
+- Live calls to Anthropic, Groq, Voyage AI or OpenAI. These paths are covered by unit tests with mocked responses and a stub server only.
 - An actual Vercel deployment. Nothing has been deployed.
 
 ## Known limitations

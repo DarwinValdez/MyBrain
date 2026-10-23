@@ -7,7 +7,16 @@ import { z } from "zod";
  */
 export const EMBEDDING_DIMENSIONS = 1024;
 
-export const DEFAULT_AI_MODEL = "claude-opus-5-5";
+export const GENERATION_PROVIDERS = ["anthropic", "groq"] as const;
+export type GenerationProvider = (typeof GENERATION_PROVIDERS)[number];
+
+/** Default answer model per provider. Groq's free tier serves open models. */
+export const DEFAULT_AI_MODELS: Record<GenerationProvider, string> = {
+  anthropic: "claude-opus-5-5",
+  groq: "openai/gpt-oss-120b",
+};
+export const DEFAULT_AI_MODEL = DEFAULT_AI_MODELS.anthropic;
+export const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
 export const DEFAULT_EMBEDDING_MODELS = {
   voyage: "voyage-3.5",
   openai: "text-embedding-3-small",
@@ -23,7 +32,10 @@ const optional = z
   .transform((value) => (value && value.trim() ? value.trim() : undefined));
 
 const aiEnvSchema = z.object({
+  AI_PROVIDER: z.enum(GENERATION_PROVIDERS).optional().catch(undefined),
   AI_PROVIDER_API_KEY: optional,
+  // Only for proxies and local testing; defaults to Groq's public endpoint.
+  GROQ_BASE_URL: optional,
   AI_MODEL: optional,
   AI_EFFORT: z.enum(EFFORTS).optional().catch(undefined),
   EMBEDDING_PROVIDER: z.enum(["voyage", "openai"]).optional().catch(undefined),
@@ -31,7 +43,23 @@ const aiEnvSchema = z.object({
   EMBEDDING_MODEL: optional,
 });
 
-export type GenerationConfig = { apiKey: string; model: string; effort: Effort };
+export type GenerationConfig = {
+  provider: GenerationProvider;
+  apiKey: string;
+  model: string;
+  effort: Effort;
+  /** Groq only. */
+  baseUrl?: string;
+};
+
+/**
+ * Pick the provider: an explicit AI_PROVIDER wins; otherwise recognise the key
+ * format (Groq keys start with "gsk_", Anthropic keys with "sk-ant-").
+ */
+export function detectGenerationProvider(apiKey: string, explicit?: GenerationProvider): GenerationProvider {
+  if (explicit) return explicit;
+  return apiKey.startsWith("gsk_") ? "groq" : "anthropic";
+}
 export type EmbeddingConfig = { provider: EmbeddingProvider; apiKey: string; model: string };
 
 export type AiConfig = {
@@ -46,13 +74,17 @@ export type AiConfig = {
 export function getAiConfig(env: NodeJS.ProcessEnv = process.env): AiConfig {
   const parsed = aiEnvSchema.parse(env);
 
-  const generation: GenerationConfig | null = parsed.AI_PROVIDER_API_KEY
-    ? {
-        apiKey: parsed.AI_PROVIDER_API_KEY,
-        model: parsed.AI_MODEL ?? DEFAULT_AI_MODEL,
-        effort: parsed.AI_EFFORT ?? "medium",
-      }
-    : null;
+  let generation: GenerationConfig | null = null;
+  if (parsed.AI_PROVIDER_API_KEY) {
+    const provider = detectGenerationProvider(parsed.AI_PROVIDER_API_KEY, parsed.AI_PROVIDER);
+    generation = {
+      provider,
+      apiKey: parsed.AI_PROVIDER_API_KEY,
+      model: parsed.AI_MODEL ?? DEFAULT_AI_MODELS[provider],
+      effort: parsed.AI_EFFORT ?? "medium",
+      ...(provider === "groq" ? { baseUrl: (parsed.GROQ_BASE_URL ?? GROQ_BASE_URL).replace(/\/$/, "") } : {}),
+    };
+  }
 
   const provider: EmbeddingProvider = parsed.EMBEDDING_PROVIDER ?? "voyage";
   const embeddings: EmbeddingConfig | null = parsed.EMBEDDING_API_KEY
@@ -70,7 +102,12 @@ export function getAiConfig(env: NodeJS.ProcessEnv = process.env): AiConfig {
 export function describeAiConfig(config: AiConfig = getAiConfig()) {
   return {
     generation: config.generation
-      ? { configured: true as const, provider: "Anthropic", model: config.generation.model, effort: config.generation.effort }
+      ? {
+          configured: true as const,
+          provider: config.generation.provider === "groq" ? "Groq" : "Anthropic",
+          model: config.generation.model,
+          effort: config.generation.effort,
+        }
       : { configured: false as const },
     embeddings: config.embeddings
       ? {

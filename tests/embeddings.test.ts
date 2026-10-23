@@ -64,7 +64,7 @@ describe("getAiConfig", () => {
 
   it("applies defaults", () => {
     const config = getAiConfig({ AI_PROVIDER_API_KEY: "a", EMBEDDING_API_KEY: "b", EMBEDDING_PROVIDER: "openai" } as unknown as NodeJS.ProcessEnv);
-    expect(config.generation).toEqual({ apiKey: "a", model: "claude-opus-5-5", effort: "medium" });
+    expect(config.generation).toEqual({ provider: "anthropic", apiKey: "a", model: "claude-opus-5-5", effort: "medium" });
     expect(config.embeddings).toEqual({ provider: "openai", apiKey: "b", model: "text-embedding-3-small" });
   });
 });

@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "Setup required" };
 const VARS = [
   ["NEXT_PUBLIC_SUPABASE_URL", "Your Supabase project URL"],
   ["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "Publishable (or legacy anon) key — safe for the browser"],
-  ["AI_PROVIDER_API_KEY", "Anthropic API key for AI Recall answers (server only)"],
+  ["AI_PROVIDER_API_KEY", "Groq (free, gsk_…) or Anthropic (sk-ant-…) key for AI answers (server only)"],
   ["EMBEDDING_API_KEY", "Voyage AI or OpenAI key for semantic search (server only)"],
 ];
 

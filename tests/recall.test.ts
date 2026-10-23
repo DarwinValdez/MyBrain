@@ -51,7 +51,7 @@ function setup(overrides: { conversation?: unknown; projects?: unknown[]; recent
 }
 
 const ai = {
-  generation: { apiKey: "k", model: "claude-opus-5-5", effort: "medium" as const },
+  generation: { provider: "anthropic" as const, apiKey: "k", model: "claude-opus-5-5", effort: "medium" as const },
   embeddings: { provider: "voyage" as const, apiKey: "k", model: "voyage-3.5" },
 };
 

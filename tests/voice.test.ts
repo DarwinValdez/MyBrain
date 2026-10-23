@@ -31,7 +31,7 @@ beforeEach(() => {
   getAuthContext.mockReset();
   indexMemory.mockReset().mockResolvedValue({ status: "indexed" });
   extractMemoriesFromTranscript.mockReset();
-  getAiConfig.mockReset().mockReturnValue({ generation: { apiKey: "k", model: "claude-opus-5-5", effort: "medium" }, embeddings: null });
+  getAiConfig.mockReset().mockReturnValue({ generation: { provider: "anthropic", apiKey: "k", model: "claude-opus-5-5", effort: "medium" }, embeddings: null });
 });
 
 describe("voice helpers", () => {
